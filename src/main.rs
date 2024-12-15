@@ -1,16 +1,14 @@
 mod cleaning;
 mod filtering;
 mod selecting;
+mod graph;
 mod output;
 mod play;
-mod graph;
-mod export;
 
 use cleaning::clean_csv;
 use filtering::filter_tom_brady;
 use selecting::select_columns;
-use graph::{build_graphs_by_down_and_distance, cluster_graph};
-use export::{export_clusters_to_csv, export_graph_to_dot};
+use graph::{build_graph_from_csv, analyze_graph,};
 use std::fs;
 
 fn validate_file(file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -48,23 +46,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Filtered CSV with desired columns created: {}", final_file);
 
-    // Step 4: Graph clustering and partitioning
-    let graphs = build_graphs_by_down_and_distance(final_file);
+    // Step 4: Graphing
+    let csv_path = "brady_filtered_columns.csv";
 
-    for ((down, category), graph) in graphs {
-        println!("Clustering for Down: {}, Category: {}", down, category);
+    // Build the graph
+    let graph = build_graph_from_csv(csv_path)?;
 
-        let clusters = cluster_graph(&graph);
-        println!("Clusters: {:?}", clusters);
+    // Analyze the graph
+    analyze_graph(&graph);
 
-        let cluster_file = format!("{}/clusters_down_{}_distance_{}.csv", cluster_output_path, down, category);
-        export_clusters_to_csv(clusters, &graph, down, &category, &cluster_file)
-            .expect("Failed to export clusters to CSV");
-
-        export_graph_to_dot(&graph, down, &category, graph_output_path)
-            .expect("Failed to export graph to DOT format");
-    }
-
-    println!("Clustering analysis completed!");
     Ok(())
 }

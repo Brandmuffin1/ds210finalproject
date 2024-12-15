@@ -1,56 +1,76 @@
 use csv::{ReaderBuilder, WriterBuilder};
+use std::error::Error;
 
 pub fn clean_csv(input_file: &str, output_file: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let mut rdr = ReaderBuilder::new().from_path(input_file)?;
+    // Open the input CSV file
+    let mut rdr = ReaderBuilder::new().flexible(true).from_path(input_file)?;
+
+    // Open the output CSV file
     let mut wtr = WriterBuilder::new().from_path(output_file)?;
 
+    // Read and write headers
     let headers = rdr.headers()?.clone();
     wtr.write_record(&headers)?;
 
-    let mut processed_rows = 0;
-    let mut skipped_rows = 0;
-
+    // Process each row
     for (line_number, result) in rdr.records().enumerate() {
         match result {
             Ok(record) => {
-                let cleaned_row: Vec<String> = record.iter().enumerate().map(|(idx, value)| {
-                    if value.trim().is_empty() {
-                        if idx < 2 { // Example: Replace numeric fields with "0"
-                            "0".to_string()
-                        } else { // Replace text fields with empty string
-                            "".to_string()
-                        }
-                    } else {
-                        value.to_string()
-                    }
-                }).collect();
-
-                // Skip rows with unequal lengths
-                if cleaned_row.len() != headers.len() {
-                    eprintln!(
-                        "Skipping row {} due to unequal length (expected: {}, got: {})",
-                        line_number + 1,
-                        headers.len(),
-                        cleaned_row.len()
-                    );
-                    skipped_rows += 1;
-                    continue;
-                }
+                // Ensure all rows have the same number of columns as the header
+                let cleaned_row: Vec<String> = (0..headers.len())
+                    .map(|i| record.get(i).unwrap_or("").trim().to_string())
+                    .map(|value| if value.is_empty() { "0".to_string() } else { value })
+                    .collect();
 
                 wtr.write_record(&cleaned_row)?;
-                processed_rows += 1;
             }
             Err(err) => {
                 eprintln!("Skipping row {} due to error: {}", line_number + 1, err);
-                skipped_rows += 1;
             }
         }
     }
 
     wtr.flush()?;
-    println!(
-        "Cleaning completed: {} rows processed, {} rows skipped.",
-        processed_rows, skipped_rows
-    );
     Ok(())
+}
+
+#[test]
+fn test_clean_csv_fill_blanks() {
+    // Input CSV data with missing fields
+    let csv_data = "\
+game_id,play_id,down,ydstogo,play_type,passer,receiver,yards_gained
+2020_01_TB_NO,233,1,10,pass,T.Brady,C.Godwin,29
+2020_01_TB_NO,234,2,10,run,T.Brady,,0
+,235,3,10,pass,T.Brady,M.Evans,
+2020_01_TB_NO,236,,10,pass,T.Brady,S.Miller,8";
+
+    // Expected cleaned data
+    let expected_cleaned_data = "\
+game_id,play_id,down,ydstogo,play_type,passer,receiver,yards_gained
+2020_01_TB_NO,233,1,10,pass,T.Brady,C.Godwin,29
+2020_01_TB_NO,234,2,10,run,T.Brady,0,0
+0,235,3,10,pass,T.Brady,M.Evans,0
+2020_01_TB_NO,236,0,10,pass,T.Brady,S.Miller,8";
+
+    // Create temporary input and output CSV files
+    let input_file = "test_clean_csv_input.csv";
+    let output_file = "test_clean_csv_output.csv";
+    std::fs::write(input_file, csv_data).unwrap();
+
+    // Run the clean_csv function
+    clean_csv(input_file, output_file).expect("clean_csv failed");
+
+    // Read the output file
+    let output_data = std::fs::read_to_string(output_file).unwrap();
+
+    // Log actual and expected outputs
+    println!("Actual Output:\n{}", output_data);
+    println!("Expected Output:\n{}", expected_cleaned_data);
+
+    // Compare output to the expected cleaned data
+    assert_eq!(output_data.trim(), expected_cleaned_data.trim(), "Cleaned data does not match expected output");
+
+    // Cleanup
+    std::fs::remove_file(input_file).unwrap();
+    std::fs::remove_file(output_file).unwrap();
 }
