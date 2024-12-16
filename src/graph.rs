@@ -4,39 +4,33 @@ use std::collections::HashMap;
 
 pub type ReceiverGraph = Graph<String, (), Directed>;
 
-/// Build a graph where each pass attempt is a vertex and connects to a receiver node
+// Build a graph where each pass attempt is a vertex and connects to a receiver node
 pub fn build_graph_from_csv(
     csv_path: &str,
 ) -> Result<ReceiverGraph, Box<dyn std::error::Error>> {
     let mut rdr = csv::Reader::from_path(csv_path)?;
     let mut graph = ReceiverGraph::new();
-
     let mut receiver_nodes: HashMap<String, NodeIndex> = HashMap::new();
-
     for (line_number, result) in rdr.records().enumerate() {
         let record = result?;
         let receiver = record.get(6).unwrap_or("").to_string(); // Column 6 is "receiver"
-
         if receiver.is_empty() {
             eprintln!("Skipping row {}: Missing `receiver` field", line_number + 1);
             continue;
         }
-
+        
         // Add or retrieve the node for the receiver
         let receiver_index = *receiver_nodes.entry(receiver.clone()).or_insert_with(|| graph.add_node(receiver.clone()));
-
+        
         // Add a vertex for the individual pass attempt and connect it to the receiver
         let pass_attempt_vertex = format!("Pass {}", line_number + 1); // Unique identifier for the pass
         let pass_attempt_index = graph.add_node(pass_attempt_vertex);
-
         graph.add_edge(pass_attempt_index, receiver_index, ());
     }
-
     Ok(graph)
 }
 
-/// Analyze the graph
-/// Analyze the graph with detailed information about nodes and edges
+// Analyze the graph with detailed information about nodes and edges
 pub fn analyze_graph(graph: &ReceiverGraph) {
     println!("Graph Info:");
     println!("Nodes: {}", graph.node_count());
@@ -70,8 +64,6 @@ pub fn analyze_graph(graph: &ReceiverGraph) {
             }
         }
     }
-    // Print total incompletions
-    println!("\nTotal Incompletions: {}", incompletions);
     
     // Count unique receivers
     let unique_receivers: Vec<String> = graph
@@ -87,6 +79,9 @@ pub fn analyze_graph(graph: &ReceiverGraph) {
         .collect();
 
     println!("\nNumber of Unique Receivers Targeted: {}", unique_receivers.len());
+
+    // Print total incompletions
+    println!("\nTotal Incompletions: {}", incompletions);
 
     // Count the number of edges (targets) for each receiver
     let mut receiver_counts: HashMap<String, usize> = HashMap::new();

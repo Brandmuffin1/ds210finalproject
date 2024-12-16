@@ -1,7 +1,7 @@
 use csv::{ReaderBuilder, WriterBuilder};
-use std::error::Error;
 
 pub fn clean_csv(input_file: &str, output_file: &str) -> Result<(), Box<dyn std::error::Error>> {
+
     // Open the input CSV file
     let mut rdr = ReaderBuilder::new().flexible(true).from_path(input_file)?;
 
@@ -16,6 +16,7 @@ pub fn clean_csv(input_file: &str, output_file: &str) -> Result<(), Box<dyn std:
     for (line_number, result) in rdr.records().enumerate() {
         match result {
             Ok(record) => {
+                
                 // Ensure all rows have the same number of columns as the header
                 let cleaned_row: Vec<String> = (0..headers.len())
                     .map(|i| record.get(i).unwrap_or("").trim().to_string())

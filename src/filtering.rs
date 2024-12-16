@@ -3,13 +3,12 @@ use csv::{ReaderBuilder, WriterBuilder};
 pub fn filter_tom_brady(input_file: &str, output_file: &str) -> Result<(), Box<dyn std::error::Error>> {
     let mut rdr = ReaderBuilder::new().flexible(true).from_path(input_file)?;
     let mut wtr = WriterBuilder::new().from_path(output_file)?;
-
     let headers = rdr.headers()?.clone();
     wtr.write_record(&headers)?;
-
     for (line_number, result) in rdr.records().enumerate() {
         match result {
             Ok(record) => {
+
                 // Skip rows with unequal lengths
                 if record.len() != headers.len() {
                     eprintln!(
@@ -20,7 +19,7 @@ pub fn filter_tom_brady(input_file: &str, output_file: &str) -> Result<(), Box<d
                     );
                     continue;
                 }
-
+                
                 // Extract required columns
                 let passer = record
                     .get(headers.iter().position(|h| h == "passer").unwrap())
@@ -39,7 +38,6 @@ pub fn filter_tom_brady(input_file: &str, output_file: &str) -> Result<(), Box<d
             }
         }
     }
-
     wtr.flush()?;
     Ok(())
 }
